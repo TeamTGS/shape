@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
   unsigned measures = trainingSets[0].size();
  
   //EstimatePCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors);
-  EstimatePCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors);
+  EstimatePCAModelParameters(measures, 10, trainingSets, means, eigenValues, eigenVectors);
 
    std::cout << "eigenValues: " << eigenValues << std::endl;
   // std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
@@ -229,10 +229,12 @@ void iPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 	vnl_matrix<PrecisionType> D;
 	D.set_size(m_NumberOfMeasures, m_NumberOfTrainingSets);
 	D.fill(0);
-	// project new shapes
-	for (unsigned int i = 0; i < m_NumberOfTrainingSets ; i++)
+	// remove the mean from new surface
+	for (unsigned int i = 11; i < m_NumberOfTrainingSets ; i++)
 	{
 		const vnl_vector<PrecisionType> tmpSet = m_TrainingSets[i] - m_Means;
 		D.set_column(i, tmpSet);
 	}
+
+
 }
