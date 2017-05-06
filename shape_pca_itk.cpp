@@ -20,6 +20,7 @@ typedef float PrecisionType;
 bool ReadSurfaceFileNames(const char * filename, std::vector<int> &ids, std::vector<std::string> &filenames);
 void EstimatePCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors);
 void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<PrecisionType> &eigenVecs, vnl_vector<PrecisionType> &eigenVals);
+void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors);
 
 int main(int argc, char *argv[])
 {
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
     
   int count = 1;
   std::vector<VectorType> trainingSets;
-  for(unsigned int i = 0; i < filenames.size(); i++)
+  for(unsigned int i = 0; i < 20/*filenames.size()*/; i++)
   //for (unsigned int i = 0; i < 1; i++)
   {
     ReaderType::Pointer  polyDataReader = ReaderType::New();
@@ -119,10 +120,10 @@ int main(int argc, char *argv[])
  
   //EstimatePCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors);
   EstimatePCAModelParameters(measures, 10, trainingSets, means, eigenValues, eigenVectors);
-
-   std::cout << "eigenValues: " << eigenValues << std::endl;
-  // std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
-   //iPCAModelParameters(measures, 7, trainingSets, means, eigenValues, eigenVectors);
+  
+  //std::cout << "eigenValues: " << eigenValues << std::endl;
+  //std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
+  IPCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors);
   
   // code here
   std::cout << "Complete" << std::endl;
@@ -221,20 +222,34 @@ void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<Precisio
   eigenVecs.normalize_columns();
 
   eigenVals = svd.W().diagonal();
-  std::cout << svd.W() << std::endl;
 }
 
-void iPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors)
+void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors)
 {
 	vnl_matrix<PrecisionType> D;
+	
 	D.set_size(m_NumberOfMeasures, m_NumberOfTrainingSets);
 	D.fill(0);
 	// remove the mean from new surface
-	for (unsigned int i = 11; i < m_NumberOfTrainingSets ; i++)
+	for (unsigned int i = 10; i < m_NumberOfTrainingSets ; i++)
 	{
 		const vnl_vector<PrecisionType> tmpSet = m_TrainingSets[i] - m_Means;
 		D.set_column(i, tmpSet);
 	}
-
+	std::cout << m_EigenVectors.transpose().rows() << std::endl;
+	std::cout << m_EigenVectors.transpose().cols() << std::endl;
+	vnl_matrix<PrecisionType> UT = m_EigenVectors.transpose();
+	vnl_matrix<PrecisionType> a;
+	
+	
+	for (unsigned int i = 10; i < m_NumberOfTrainingSets; i++)
+	{
+		a.set_size(m_NumberOfMeasures, UT.cols() + 1);
+		a.fill(0);
+		a.set_columns(0, UT);
+		a.set_column(a.cols() - 1, D[i]);
+	}
+	
+	
 
 }
