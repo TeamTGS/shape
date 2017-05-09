@@ -227,29 +227,82 @@ void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<Precisio
 void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors)
 {
 	vnl_matrix<PrecisionType> D;
-	
 	D.set_size(m_NumberOfMeasures, m_NumberOfTrainingSets);
 	D.fill(0);
-	// remove the mean from new surface
+	vnl_matrix<PrecisionType> U = m_EigenVectors;
+	vnl_matrix<PrecisionType> UT = m_EigenVectors.transpose();
+	vnl_matrix<PrecisionType> a;
+	vnl_matrix<PrecisionType> y;
+	vnl_matrix<PrecisionType> m;
+	m.set_size(m_Means.size(), 1);
+	m.set_column(0, m_Means);
+	vnl_matrix<PrecisionType> x;
+	x.set_size(m_TrainingSets[0].size(), 1);
+	vnl_matrix<PrecisionType> r;
+	vnl_matrix<PrecisionType> Ud;
+	Ud.set_size(m_NumberOfMeasures, 2);
+	vnl_matrix<PrecisionType> A;
+	vnl_matrix<PrecisionType> Ad;
+	vnl_matrix<PrecisionType> Anew;
+
+	// Remove the mean from new surface
 	for (unsigned int i = 10; i < m_NumberOfTrainingSets ; i++)
 	{
 		const vnl_vector<PrecisionType> tmpSet = m_TrainingSets[i] - m_Means;
 		D.set_column(i, tmpSet);
 	}
-	std::cout << m_EigenVectors.transpose().rows() << std::endl;
-	std::cout << m_EigenVectors.transpose().cols() << std::endl;
-	vnl_matrix<PrecisionType> UT = m_EigenVectors.transpose();
-	vnl_matrix<PrecisionType> a;
-	
+
+	//std::cout << "m row " << m.rows() << std::endl;
+	//std::cout << "m cols " << m.cols() << std::endl;
 	
 	for (unsigned int i = 10; i < m_NumberOfTrainingSets; i++)
 	{
-		a.set_size(m_NumberOfMeasures, UT.cols() + 1);
-		a.fill(0);
-		a.set_columns(0, UT);
-		a.set_column(a.cols() - 1, D[i]);
+		// Project new surface from D to current eigenspace
+		a = UT * D.get_n_columns(i, 1);
+
+		// Reconstruct new image
+		y = m_EigenVectors*a + m;
+
+		// Residual vector
+		x.set_column(0, m_TrainingSets[i]);
+		r = x - y;
+		std::cout << "r norm check " << r.get(0, 0) << " " << r.normalize_columns().get(0,0) << std::endl;
+
+		// Append r as a  new basis vector
+		//Ud.set_column(0,m_EigenVectors);
+		//Ud.set_column(1, r.normalize_columns());
+
+		// New coefficients
+		//A.set_size();
+		//Ad.set_size(A.rows() + 1, A.cols() + 1);
+		//Ad.fill(0);
+		//Ad.set
+
+		// Peform PCA, get means, eigenvectors, eigenvalues
+		m_Means.set_size(m_NumberOfMeasures);
+		m_Means.fill(0);
+		for (unsigned int j = 0; j < m_NumberOfTrainingSets; j++)
+		{
+			m_Means += m_TrainingSets[j];
+		}
+		m_Means /= (PrecisionType)(m_NumberOfTrainingSets);
+		//ApplyStandardPCA(Ad, m_EigenVectors, m_EigenValues);
+
+		// Project the coefficient vectors to new basis
+		//Anew = m_EigenVectors.transpose() * (Ad - m_Means)
+
+		// Rotate the subspace
+		//m_EigenVectors = Ud * m_EigenVectors
+
+		// Update the mean
+
+
+		// New eigenvalues
+
 	}
 	
 	
 
 }
+
+//C:\Users\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 1 1 1
