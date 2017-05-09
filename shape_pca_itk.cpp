@@ -240,7 +240,8 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 	x.set_size(m_TrainingSets[0].size(), 1);
 	vnl_matrix<PrecisionType> r;
 	vnl_matrix<PrecisionType> Ud;
-	Ud.set_size(m_NumberOfMeasures, 2);
+	Ud.set_size(m_NumberOfMeasures, m_EigenVectors.cols()+1);
+	
 	vnl_matrix<PrecisionType> A;
 	vnl_matrix<PrecisionType> Ad;
 	vnl_matrix<PrecisionType> Anew;
@@ -266,16 +267,19 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		// Residual vector
 		x.set_column(0, m_TrainingSets[i]);
 		r = x - y;
-		std::cout << "r norm check " << r.get(0, 0) << " " << r.normalize_columns().get(0,0) << std::endl;
+		std::cout << "r norm check " << r.get(0, 0) << std::endl;
+			std::cout << r.normalize_columns().get(0,0) << std::endl;
 
 		// Append r as a  new basis vector
-		//Ud.set_column(0,m_EigenVectors);
-		//Ud.set_column(1, r.normalize_columns());
+		// google search vnl matrix append
+		Ud.set_columns(0,m_EigenVectors);
+		Ud.set_columns(m_EigenVectors.cols(), r.normalize_columns());
 
 		// New coefficients
 		//A.set_size();
 		//Ad.set_size(A.rows() + 1, A.cols() + 1);
 		//Ad.fill(0);
+		// add A,
 		//Ad.set
 
 		// Peform PCA, get means, eigenvectors, eigenvalues
