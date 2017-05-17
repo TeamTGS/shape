@@ -283,8 +283,8 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		Ud.set_columns(0, m_EigenVectors);
 
 		rn = r.normalize_columns();
-		Ud.set_columns(Ud.cols()-1, rn);
-		
+		Ud.set_columns(Ud.cols() - 1, rn);
+
 		// New coefficients
 
 		Ad.set_size(m_A.rows() + 1, m_A.cols() + 1);
@@ -301,7 +301,7 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		}
 		temp = sqrt(temp);
 		std::cout << "r norm " << temp << std::endl;
-		
+
 		std::cout << "r norm " << r.array_two_norm() << std::endl;
 
 		// Perform PCA on Ad
@@ -315,7 +315,7 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		//	udd += m_TrainingSets[j];
 		//}
 		//udd /= (PrecisionType)(m_NumberOfTrainingSets);
-		
+
 
 		// Project the coefficient vectors to new basis
 		// remove means from all columns of Ad
