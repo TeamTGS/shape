@@ -18,9 +18,9 @@
 typedef float PrecisionType;
   
 bool ReadSurfaceFileNames(const char * filename, std::vector<int> &ids, std::vector<std::string> &filenames);
-void EstimatePCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors);
+void EstimatePCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A);
 void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<PrecisionType> &eigenVecs, vnl_vector<PrecisionType> &eigenVals);
-void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors);
+void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A);
 
 int main(int argc, char *argv[])
 {
@@ -115,15 +115,19 @@ int main(int argc, char *argv[])
   VectorType    means;
   MatrixType    eigenVectors;
   VectorType    eigenValues;
+  MatrixType	A;
 
   unsigned measures = trainingSets[0].size();
  
   //EstimatePCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors);
-  EstimatePCAModelParameters(measures, 10, trainingSets, means, eigenValues, eigenVectors);
-  
+  // start with 10 images
+  EstimatePCAModelParameters(measures, 10, trainingSets, means, eigenValues, eigenVectors, A);
+
   //std::cout << "eigenValues: " << eigenValues << std::endl;
   //std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
-  IPCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors);
+
+
+  IPCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors, A);
   
   // code here
   std::cout << "Complete" << std::endl;
@@ -173,7 +177,7 @@ bool ReadSurfaceFileNames(const char * filename, std::vector<int> &ids, std::vec
   return EXIT_SUCCESS;
 }
 
-void EstimatePCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors)
+void EstimatePCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A)
 {
 	//-------------------------------------------------------------------------
 	//Calculate the Means
@@ -204,6 +208,13 @@ void EstimatePCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOf
 	//std::cout << "PCAModelEstimator: D Performed " << D.rows() << "x" << D.columns() << std::endl;
 
 	ApplyStandardPCA(D, m_EigenVectors, m_EigenValues);
+
+	m_A.set_size(m_NumberOfTrainingSets, m_NumberOfTrainingSets);
+	for (unsigned int i = 0; i < m_NumberOfTrainingSets; i++)
+	{
+		m_A.set_column(i, m_EigenVectors.transpose() * D.get_column(i));
+		
+	}
 }
 
 //! Function for applying the PCA of matrices provided using SVD
@@ -224,7 +235,7 @@ void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<Precisio
   eigenVals = svd.W().diagonal();
 }
 
-void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors)
+void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A)
 {
 	vnl_matrix<PrecisionType> D;
 	D.set_size(m_NumberOfMeasures, m_NumberOfTrainingSets);
@@ -241,8 +252,7 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 	vnl_matrix<PrecisionType> r;
 	vnl_matrix<PrecisionType> Ud;
 	Ud.set_size(m_NumberOfMeasures, m_EigenVectors.cols()+1);
-	
-	vnl_matrix<PrecisionType> A;
+
 	vnl_matrix<PrecisionType> Ad;
 	vnl_matrix<PrecisionType> Anew;
 
@@ -252,9 +262,6 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		const vnl_vector<PrecisionType> tmpSet = m_TrainingSets[i] - m_Means;
 		D.set_column(i, tmpSet);
 	}
-
-	//std::cout << "m row " << m.rows() << std::endl;
-	//std::cout << "m cols " << m.cols() << std::endl;
 	
 	for (unsigned int i = 10; i < m_NumberOfTrainingSets; i++)
 	{
@@ -276,11 +283,12 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		Ud.set_columns(m_EigenVectors.cols(), r.normalize_columns());
 
 		// New coefficients
-		//A.set_size();
-		//Ad.set_size(A.rows() + 1, A.cols() + 1);
-		//Ad.fill(0);
+		
+		Ad.set_size(m_A.rows() + 1, m_A.cols() + 1);
+		Ad.fill(0);
 		// add A,
-		//Ad.set
+		Ad.set_columns(0, m_A);
+		std::cout << Ad << std::endl;
 
 		// Peform PCA, get means, eigenvectors, eigenvalues
 		m_Means.set_size(m_NumberOfMeasures);
