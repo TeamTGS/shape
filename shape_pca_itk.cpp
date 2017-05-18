@@ -268,14 +268,20 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 	for (unsigned int i = 10; i < m_NumberOfTrainingSets; i++)
 	{
 		// Project new surface from D to current eigenspace
+		std::cout << "a size: " << a.cols() << "x" << a.rows() << std::endl;
 		a = UT * D.get_n_columns(i, 1);
+		std::cout << "a calculated." << std::endl;
 
 		// Reconstruct new image
+		std::cout << "m_EigenVectors size: " << m_EigenVectors.cols() << "x" << m_EigenVectors.rows() << std::endl;
+		//error here at i = 11
 		y = m_EigenVectors*a + m;
+		std::cout << "y calculated." << std::endl;
 
 		// Residual vector
 		x.set_column(0, m_TrainingSets[i]);
 		r = x - y;
+		std::cout << "r calculated." << std::endl;
 
 		// Append r as a  new basis vector
 		// google search vnl matrix append
@@ -284,6 +290,7 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 
 		rn = r.normalize_columns();
 		Ud.set_columns(Ud.cols() - 1, rn);
+		std::cout << "Ud  calculated." << std::endl;
 
 		// New coefficients
 
@@ -293,36 +300,41 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		// error
 		Ad.update(m_A, 0, 0);
 		Ad.update(a, 0, Ad.cols() - 1);
-		//Ad.put(Ad.rows() - 1, Ad.cols() - 1, r.array_two_norm());
+		// ??use basic math or array_two_norm??
 		double temp;
 		for (unsigned int k = 0; k < r.size(); k++)
 		{
 			temp += (r.get(k, 1)*r.get(k, 1));
 		}
 		temp = sqrt(temp);
-		std::cout << "r norm " << temp << std::endl;
-
-		std::cout << "r norm " << r.array_two_norm() << std::endl;
+		Ad.put(Ad.rows() - 1, Ad.cols() - 1, r.array_two_norm());
+		std::cout << "Ad calculated." << std::endl;
+		//std::cout << "r norm " << temp << std::endl;
+		//std::cout << "r norm " << r.array_two_norm() << std::endl;
+		//std::cout << "Ad: " << Ad << std::endl;
 
 		// Perform PCA on Ad
-		//ApplyStandardPCA(Ad, m_EigenVectors, m_EigenValues);
+		ApplyStandardPCA(Ad, m_EigenVectors, m_EigenValues);
 
 		// Obtain the mean value udd
-		//udd.set_size(m_NumberOfMeasures);
-		//udd.fill(0);
-		//for (unsigned int j = 0; j < i; j++)
-		//{
-		//	udd += m_TrainingSets[j];
-		//}
-		//udd /= (PrecisionType)(m_NumberOfTrainingSets);
+		udd.set_size(m_NumberOfMeasures);
+		udd.fill(0);
+		for (unsigned int j = 0; j < i; j++)
+		{
+			udd += m_TrainingSets[j];
+		}
+		udd /= (PrecisionType)(m_NumberOfTrainingSets);
 
 
 		// Project the coefficient vectors to new basis
 		// remove means from all columns of Ad
+		std::cout << "udd rows: " << udd.size() <<  std::endl;
+		
+
 		//m_A = m_EigenVectors.transpose() * (Ad - m_Means);
 
 		// Rotate the subspace
-		//m_EigenVectors = Ud * m_EigenVectors;
+		m_EigenVectors = Ud * m_EigenVectors;
 
 		// Update the mean
 		//m_Means = m_Means + Ud * udd;
