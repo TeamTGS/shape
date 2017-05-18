@@ -252,7 +252,6 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 	vnl_matrix<PrecisionType> r;
 	vnl_matrix<PrecisionType> Ud;
 	Ud.set_size(m_NumberOfMeasures, m_EigenVectors.cols() + 1);
-
 	vnl_matrix<PrecisionType> Ad;
 	vnl_matrix<PrecisionType> Anew;
 	vnl_matrix<PrecisionType> rn;
@@ -268,14 +267,16 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 	for (unsigned int i = 10; i < m_NumberOfTrainingSets; i++)
 	{
 		// Project new surface from D to current eigenspace
-		std::cout << "a size: " << a.cols() << "x" << a.rows() << std::endl;
+		
 		a = UT * D.get_n_columns(i, 1);
+		std::cout << "a size: " << a.cols() << "x" << a.rows() << std::endl;
 		std::cout << "a calculated." << std::endl;
 
 		// Reconstruct new image
 		std::cout << "m_EigenVectors size: " << m_EigenVectors.cols() << "x" << m_EigenVectors.rows() << std::endl;
 		//error here at i = 11
 		y = m_EigenVectors*a + m;
+		std::cout << "y size: " << y.cols() << "x" << y.rows() << std::endl;
 		std::cout << "y calculated." << std::endl;
 
 		// Residual vector
@@ -293,28 +294,29 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		std::cout << "Ud  calculated." << std::endl;
 
 		// New coefficients
-
 		Ad.set_size(m_A.rows() + 1, m_A.cols() + 1);
 		Ad.fill(0);
-		// add A,
-		// error
+		// add A
 		Ad.update(m_A, 0, 0);
 		Ad.update(a, 0, Ad.cols() - 1);
 		// ??use basic math or array_two_norm??
-		double temp;
+		double r_mag;
 		for (unsigned int k = 0; k < r.size(); k++)
 		{
-			temp += (r.get(k, 1)*r.get(k, 1));
+			r_mag += (r.get(k, 1)*r.get(k, 1));
 		}
-		temp = sqrt(temp);
+		r_mag = sqrt(r_mag);
+
+		//Ad.put(Ad.rows() - 1, Ad.cols() - 1, r_mag);
 		Ad.put(Ad.rows() - 1, Ad.cols() - 1, r.array_two_norm());
+		std::cout << "r_mag: " << r_mag << std::endl;
+		std::cout << "r.array_two_norm: " << r.array_two_norm() << std::endl;
 		std::cout << "Ad calculated." << std::endl;
-		//std::cout << "r norm " << temp << std::endl;
-		//std::cout << "r norm " << r.array_two_norm() << std::endl;
-		//std::cout << "Ad: " << Ad << std::endl;
+		std::cout << "Ad size: " << Ad.cols() << "x" << Ad.rows() << std::endl;
 
 		// Perform PCA on Ad
 		ApplyStandardPCA(Ad, m_EigenVectors, m_EigenValues);
+		std::cout << "PCA calculated." << std::endl;
 
 		// Obtain the mean value udd
 		udd.set_size(m_NumberOfMeasures);
@@ -324,20 +326,22 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 			udd += m_TrainingSets[j];
 		}
 		udd /= (PrecisionType)(m_NumberOfTrainingSets);
+		std::cout << "udd calculated." << std::endl;
 
 
 		// Project the coefficient vectors to new basis
 		// remove means from all columns of Ad
 		std::cout << "udd rows: " << udd.size() <<  std::endl;
-		
-
 		//m_A = m_EigenVectors.transpose() * (Ad - m_Means);
+		//std::cout << "m_A calculated." << std::endl;
 
 		// Rotate the subspace
 		m_EigenVectors = Ud * m_EigenVectors;
+		std::cout << "m_EigenVectors calculated." << std::endl;
 
 		// Update the mean
 		//m_Means = m_Means + Ud * udd;
+		std::cout << "m_Means calculated." << std::endl;
 
 		// New eigenvalues
 
@@ -346,5 +350,8 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 
 
 }
+//laptop
+//C:\Uses\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 1 1 1
 
-//C:\Users\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 1 1 1
+//desktop
+//C:\Users\Alex\Documents\thesis\shape\build\bin\Release\shape_pca_itk.exe C:\Users\Alex\Documents\IncrementalLearn\IPCA\aligned\aligned.mvb 1 1 1
