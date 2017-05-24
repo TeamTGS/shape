@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 
 	int count = 1;
 	std::vector<VectorType> trainingSets;
-	for (unsigned int i = 0; i < 20/*filenames.size()*/; i++)
+	for (unsigned int i = 0; i < filenames.size(); i++)
 		//for (unsigned int i = 0; i < 1; i++)
 	{
 		ReaderType::Pointer  polyDataReader = ReaderType::New();
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 	VectorType    means;
 	MatrixType    eigenVectors;
 	VectorType    eigenValues;
-	MatrixType	A;
+	MatrixType	  A;
 
 	unsigned measures = trainingSets[0].size();
 
@@ -126,10 +126,9 @@ int main(int argc, char *argv[])
 	//std::cout << "eigenValues: " << eigenValues << std::endl;
 	//std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
 
-
+	// IPCA the rest of the surfaces
+	// 10 to end
 	IPCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors, A);
-
-	// code here
 	std::cout << "Complete" << std::endl;
 }
 
@@ -237,68 +236,70 @@ void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<Precisio
 
 void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A)
 {
-	vnl_matrix<PrecisionType> D;
-	D.set_size(m_NumberOfMeasures, m_NumberOfTrainingSets);
-	D.fill(0);
-	vnl_matrix<PrecisionType> U = m_EigenVectors;
-	vnl_matrix<PrecisionType> UT = m_EigenVectors.transpose();
+	// n x m rols x cols
+	// m_NumberOfMeasures:		 69138
+	// m_NumberOfTrainingSets:	 20 (depends on .mvb file)
+	// m_TrainingSets:			 (vector) 69138 x 20, whole set of surface
+	// m_Means:					 (vector) 69138
+	// m_EigenValues:			 (vector) initially 10 from Batch PCA
+	// m_EigenVectors:			 (matrix) initially 69138 x 10 from Batch PCA
+	// m_A:						 (matrix) coefficient, initially 10 x 10 
+	
+	//vnl_matrix<PrecisionType> D;
+	//D.set_size(m_NumberOfMeasures, m_NumberOfTrainingSets);
+	//D.fill(0);
+	//vnl_matrix<PrecisionType> U = m_EigenVectors; // 69138 x 10
+	vnl_matrix<PrecisionType> UT; // 10 x 69138
+	vnl_matrix<PrecisionType> x;
+	vnl_matrix<PrecisionType> m;
+
+	vnl_matrix<PrecisionType> tmpSet;
 	vnl_matrix<PrecisionType> a;
 	vnl_matrix<PrecisionType> y;
-	vnl_matrix<PrecisionType> m;
-	m.set_size(m_Means.size(), 1);
-	m.set_column(0, m_Means);
-	vnl_matrix<PrecisionType> x;
-	x.set_size(m_TrainingSets[0].size(), 1);
 	vnl_matrix<PrecisionType> r;
 	vnl_matrix<PrecisionType> Ud;
-	Ud.set_size(m_NumberOfMeasures, m_EigenVectors.cols() + 1);
 	vnl_matrix<PrecisionType> Ad;
 	vnl_matrix<PrecisionType> Anew;
 	vnl_matrix<PrecisionType> rn;
 	vnl_vector<PrecisionType> udd;
-
-	// Remove the mean from new surface
-	for (unsigned int i = 10; i < m_NumberOfTrainingSets; i++)
-	{
-		const vnl_vector<PrecisionType> tmpSet = m_TrainingSets[i] - m_Means;
-		D.set_column(i, tmpSet);
-	}
+	vnl_matrix<PrecisionType> tmpAd;
 
 	for (unsigned int i = 10; i < m_NumberOfTrainingSets; i++)
 	{
-		// Project new surface from D to current eigenspace
-		
-		a = UT * D.get_n_columns(i, 1);
-		std::cout << "a size: " << a.cols() << "x" << a.rows() << std::endl;
-		std::cout << "a calculated." << std::endl;
-
-		// Reconstruct new image
-		std::cout << "m_EigenVectors size: " << m_EigenVectors.cols() << "x" << m_EigenVectors.rows() << std::endl;
-		//error here at i = 11
-		y = m_EigenVectors*a + m;
-		std::cout << "y size: " << y.cols() << "x" << y.rows() << std::endl;
-		std::cout << "y calculated." << std::endl;
-
-		// Residual vector
+		// 1. Project new surface from D to current eigenspace, a = UT(x-mean)
+		UT = m_EigenVectors.transpose(); // 10 x 69138
+		x.set_size(m_NumberOfMeasures, 1);
 		x.set_column(0, m_TrainingSets[i]);
-		r = x - y;
-		std::cout << "r calculated." << std::endl;
+		tmpSet.set_size(m_NumberOfMeasures, 1);
+		tmpSet.set_column(0, (m_TrainingSets[i] - m_Means));
+		a.set_size(i,1);
+		a.set_columns(0, UT * tmpSet); // 10 x 1
 
-		// Append r as a  new basis vector
+		// 2. Reconstruct new image, y = U a + mean
+		m.set_size(m_Means.size(), 1);
+		m.set_column(0, m_Means);
+		y = m_EigenVectors*a + m;
+
+		// 3. Compute the residual vector, r is orthogonal to U
+		r = x - y;
+		//std::cout << "step 3" << std::endl;
+
+		// 4. Append r as a  new basis vector
 		// google search vnl matrix append
 		Ud.set_size(m_NumberOfMeasures, m_EigenVectors.cols() + 1);
 		Ud.set_columns(0, m_EigenVectors);
-
 		rn = r.normalize_columns();
 		Ud.set_columns(Ud.cols() - 1, rn);
-		std::cout << "Ud  calculated." << std::endl;
+		//std::cout << "step 4" << std::endl;
 
-		// New coefficients
-		Ad.set_size(m_A.rows() + 1, m_A.cols() + 1);
+		// 5. New coefficients
+		Ad.set_size(m_A.rows() + 1, m_A.cols() + 1); // i+1 x i+1
 		Ad.fill(0);
 		// add A
 		Ad.update(m_A, 0, 0);
+		// add a
 		Ad.update(a, 0, Ad.cols() - 1);
+		// add ||r||
 		// ??use basic math or array_two_norm??
 		double r_mag;
 		for (unsigned int k = 0; k < r.size(); k++)
@@ -307,18 +308,20 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		}
 		r_mag = sqrt(r_mag);
 
-		//Ad.put(Ad.rows() - 1, Ad.cols() - 1, r_mag);
-		Ad.put(Ad.rows() - 1, Ad.cols() - 1, r.array_two_norm());
-		std::cout << "r_mag: " << r_mag << std::endl;
-		std::cout << "r.array_two_norm: " << r.array_two_norm() << std::endl;
-		std::cout << "Ad calculated." << std::endl;
-		std::cout << "Ad size: " << Ad.cols() << "x" << Ad.rows() << std::endl;
+		// #1 r_mag
+		Ad.put(Ad.rows() - 1, Ad.cols() - 1, r_mag);
+		//std::cout << "r_mag: " << r_mag << std::endl;
+		// #2 r.array_two_norm()
+		//Ad.put(Ad.rows() - 1, Ad.cols() - 1, r.array_two_norm());
+		//std::cout << "r.array_two_norm: " << r.array_two_norm() << std::endl;
+		//std::cout << "Ad size: " << Ad.cols() << "x" << Ad.rows() << std::endl;
+		//std::cout << "Ad calculated." << std::endl;
 
-		// Perform PCA on Ad
+		// 6. Perform PCA on Ad
 		ApplyStandardPCA(Ad, m_EigenVectors, m_EigenValues);
-		std::cout << "PCA calculated." << std::endl;
+		//std::cout << "PCA calculated." << std::endl;
 
-		// Obtain the mean value udd
+		// 6. Obtain the mean value udd
 		udd.set_size(m_NumberOfMeasures);
 		udd.fill(0);
 		for (unsigned int j = 0; j < i; j++)
@@ -326,25 +329,33 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 			udd += m_TrainingSets[j];
 		}
 		udd /= (PrecisionType)(m_NumberOfTrainingSets);
-		std::cout << "udd calculated." << std::endl;
+		std::cout << "udd size: " << udd.size() << std::endl;
+		//std::cout << "udd calculated." << std::endl;
 
 
-		// Project the coefficient vectors to new basis
+		// 7. Project the coefficient vectors to new basis
 		// remove means from all columns of Ad
-		std::cout << "udd rows: " << udd.size() <<  std::endl;
-		//m_A = m_EigenVectors.transpose() * (Ad - m_Means);
+		// !!!size not match, Ad and udd!!
+		//std::cout << "udd rows: " << udd.size() <<  std::endl;
+		// Ad size: i+1 x i+1 (i start at 10)
+		tmpAd.set_size(Ad.rows(), Ad.cols());
+		for (unsigned int k = 0; k < i; k++)
+		{
+			tmpAd.set_column(k, Ad.get_column(k) - udd);
+		}
+		m_A = m_EigenVectors.transpose() * (Ad);
 		//std::cout << "m_A calculated." << std::endl;
 
-		// Rotate the subspace
+		// 8. Rotate the subspace
 		m_EigenVectors = Ud * m_EigenVectors;
-		std::cout << "m_EigenVectors calculated." << std::endl;
+		//std::cout << "m_EigenVectors calculated." << std::endl;
 
-		// Update the mean
-		//m_Means = m_Means + Ud * udd;
-		std::cout << "m_Means calculated." << std::endl;
+		// 9. Update the mean
+		m_Means = m_Means + Ud * udd;
+		//std::cout << "m_Means calculated." << std::endl;
 
-		// New eigenvalues
-
+		// 10. New eigenvalues
+		
 	}
 
 
