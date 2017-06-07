@@ -317,21 +317,18 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		//std::cout << "Ad size: " << Ad.cols() << "x" << Ad.rows() << std::endl;
 		//std::cout << "Ad calculated." << std::endl;
 
-		// 6. Perform PCA on Ad
-		ApplyStandardPCA(Ad, m_EigenVectors, m_EigenValues);
-		//std::cout << "PCA calculated." << std::endl;
-
-		// 6. Obtain the mean value udd
-		udd.set_size(m_NumberOfMeasures);
+		// udd is mean of Ad
+		udd.set_size(Ad.cols());
 		udd.fill(0);
-		for (unsigned int j = 0; j < i; j++)
+		for (unsigned int i = 0; i < Ad.cols(); i++)
 		{
-			udd += m_TrainingSets[j];
+			udd += Ad.get_column(i);
 		}
-		udd /= (PrecisionType)(m_NumberOfTrainingSets);
-		std::cout << "udd size: " << udd.size() << std::endl;
-		//std::cout << "udd calculated." << std::endl;
+		udd /= (PrecisionType)(Ad.cols());
 
+		// 6. Perform PCA on Ad
+		//ApplyStandardPCA(Ad, m_EigenVectors, m_EigenValues);
+		//std::cout << "PCA calculated." << std::endl;
 
 		// 7. Project the coefficient vectors to new basis
 		// remove means from all columns of Ad
