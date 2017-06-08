@@ -143,8 +143,6 @@ int main(int argc, char *argv[])
 		myfile << i << "," << eigenValues.get(i) << "\n";
 	}
 	myfile.close();
-	return 0;
-
 	std::cout << "Complete" << std::endl;
 }
 
@@ -301,6 +299,7 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 
 		// 4. Append r as a  new basis vector
 		Ud.set_size(m_NumberOfMeasures, m_EigenVectors.cols() + 1);
+		Ud.fill(0);
 		Ud.set_columns(0, m_EigenVectors);
 		rn = r.normalize_columns();
 		Ud.set_columns(Ud.cols() - 1, rn);
@@ -313,32 +312,32 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		// add a
 		Ad.update(a, 0, Ad.cols() - 1);
 		// add ||r||
-		double r_mag;
-		for (unsigned int k = 0; k < r.size(); k++)
+		/*double r_mag = 0;
+		for (unsigned int j = 0; j < r.size(); j++)
 		{
-			r_mag += (r.get(k, 1)*r.get(k, 1));
+			r_mag += (r.get(j, 0)*r.get(j, 0));
 		}
 		r_mag = sqrt(r_mag);
-
+*/
 		// #1 r_mag
-		Ad.put(Ad.rows() - 1, Ad.cols() - 1, r_mag);
+		//Ad.put(Ad.rows() - 1, Ad.cols() - 1, r_mag);
 		//std::cout << "r_mag: " << r_mag << std::endl;
 		// #2 r.array_two_norm()
-		//Ad.put(Ad.rows() - 1, Ad.cols() - 1, r.array_two_norm());
+		Ad.put(Ad.rows() - 1, Ad.cols() - 1, sqrt(r.array_two_norm()));
 
 		// 6. Perform PCA on Ad
-		// udd is mean of Ad
+		// udd is mean of Ad, one column, Ad rows
 		udd.set_size(Ad.cols());
 		udd.fill(0);
-		for (unsigned int i = 0; i < Ad.cols(); i++)
+		for (unsigned int k = 0; k < Ad.cols(); k++)
 		{
-			udd += Ad.get_column(i);
+			udd += Ad.get_column(k);
 		}
 		udd /= (PrecisionType)(Ad.cols());
-		for (unsigned int i = 0; i < Ad.cols(); i++)
+		for (unsigned int l = 0; l < Ad.cols(); l++)
 		{
-			const vnl_vector<PrecisionType> tmpSet = Ad.get_column(i) - udd;
-			Ad.set_column(i, tmpSet);
+			const vnl_vector<PrecisionType> tmpSet = Ad.get_column(l) - udd;
+			Ad.set_column(l, tmpSet);
 		}
 		ApplyStandardPCA(Ad, Udd, lamdadd);
 
@@ -346,9 +345,9 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		// remove means from all columns of Ad
 		// Ad size: i+1 x i+1 (i start at 10)
 		tmpAd.set_size(Ad.rows(), Ad.cols());
-		for (unsigned int k = 0; k < i; k++)
+		for (unsigned int m = 0; m < i; m++)
 		{
-			tmpAd.set_column(k, Ad.get_column(k) - udd);
+			tmpAd.set_column(m, Ad.get_column(m) - udd);
 		}
 		m_A = Udd.transpose() * (tmpAd);
 
@@ -360,10 +359,11 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 
 		// 10. New eigenvalues
 		m_EigenValues = lamdadd;
+		
 	}
 }
 //laptop
-//C:\Uses\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 1 1 1
+//C:\Users\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 1 1 1
 
 //desktop
 //C:\Users\Alex\Documents\thesis\shape\build\bin\Release\shape_pca_itk.exe C:\Users\Alex\Documents\IncrementalLearn\IPCA\aligned\aligned.mvb 1 1 1
