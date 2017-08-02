@@ -23,27 +23,28 @@ typedef float PrecisionType;
 bool ReadSurfaceFileNames(const char * filename, std::vector<int> &ids, std::vector<std::string> &filenames);
 void EstimatePCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A);
 void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<PrecisionType> &eigenVecs, vnl_vector<PrecisionType> &eigenVals);
-void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A);
+void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned batchSize, unsigned eigenvectorSize, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A);
 
 int main(int argc, char *argv[])
 {
-	if (argc < 3)
+	if (argc < 4)
 	{
 		std::cerr << "Shape Modelling App" << std::endl;
 		std::cerr << "Assumes meshes in MVB are Polydata." << std::endl;
 		std::cerr << "Usage:" << std::endl;
 		std::cerr << "mvb file" << std::endl;
-		std::cerr << "Model Name" << std::endl;
-		std::cerr << "Pre-Aligned Meshes (Boolean Optional, Default 1)" << std::endl;
+		std::cerr << "BatchPCA Size " << std::endl;
+		std::cerr << "Eigenvector Size" << std::endl;
+		std::cerr << "trainingSets Size control" << std::endl;
 		return EXIT_FAILURE;
 	}
 	std::string inputFileName = argv[1];
-	std::string modelName = argv[2];
-	float tolerance = atof(argv[3]);
-	int maxIterations = atoi(argv[4]);
-	int preAligned = 1;
-	if (argc > 5)
-		preAligned = atoi(argv[5]);
+	int batchSize = atoi(argv[2]);
+	int eigenvectorSize = atof(argv[3]);
+	int trainingSetsSizeControl = atoi(argv[4]);
+	//int preAligned = 1;
+	//if (argc > 5)
+	//	preAligned = atoi(argv[5]);
 
 	std::vector<int> ids;
 	std::vector<std::string> filenames;
@@ -73,8 +74,8 @@ int main(int argc, char *argv[])
 
 	int count = 1;
 	std::vector<VectorType> trainingSets;
-	for (unsigned int i = 0; i < filenames.size(); i++)
-		//for (unsigned int i = 0; i < 1; i++)
+	//for (unsigned int i = 0; i < filenames.size(); i++)
+	for (unsigned int i = 0; i < trainingSetsSizeControl; i++)
 	{
 		ReaderType::Pointer  polyDataReader = ReaderType::New();
 		polyDataReader->SetFileName(filenames[i].c_str());
@@ -94,8 +95,8 @@ int main(int argc, char *argv[])
 		MeshType::Pointer mesh = polyDataReader->GetOutput();
 		unsigned int numberOfPoints = mesh->GetNumberOfPoints();
 		unsigned int numberOfCells = mesh->GetNumberOfCells();
-		// std::cout << "numberOfPoints= " << numberOfPoints << std::endl;
-		// std::cout << "numberOfCells= " << numberOfCells << std::endl;
+		//std::cout << "numberOfPoints= " << numberOfPoints << std::endl;
+		//std::cout << "numberOfCells= " << numberOfCells << std::endl;
 
 		// Retrieve points
 		VectorType pointsVector(3 * numberOfPoints); //for each x, y, z values
@@ -122,25 +123,30 @@ int main(int argc, char *argv[])
 
 	unsigned measures = trainingSets[0].size();
 
-	//EstimatePCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors);
-	// start with 10 images
-	EstimatePCAModelParameters(measures, 10, trainingSets, means, eigenValues, eigenVectors, A);
+	// start with selected number images
+
+	if (batchSize > trainingSets.size())
+	{
+		std::cerr << "batch size could not be larger than training set" << std::endl;
+		return EXIT_FAILURE;
+	}
+	EstimatePCAModelParameters(measures, batchSize, trainingSets, means, eigenValues, eigenVectors, A);
 
 	//std::cout << "eigenValues: " << eigenValues << std::endl;
 	//std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
 
 	// IPCA the rest of the surfaces
 	// 10 to end
-	IPCAModelParameters(measures, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors, A);
+	IPCAModelParameters(measures, batchSize, eigenvectorSize, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors, A);
 	std::cout << "eigenValues: " << eigenValues << std::endl;
 	//std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
 
 	std::ofstream myfile;
-	myfile.open("eigenvalue.csv");
+	myfile.open("C:\\Users\\Alex\\Desktop\\eigenvalue.csv");
 	myfile << "Mode,Value,\n";
 	for(int i = 0; i < trainingSets.size(); i++)
 	{ 
-		myfile << i << "," << eigenValues.get(i) << "\n";
+		myfile << i+1 << "," << eigenValues.get(i) << "\n";
 	}
 	myfile.close();
 	std::cout << "Complete" << std::endl;
@@ -247,7 +253,7 @@ void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<Precisio
 	eigenVals = svd.W().diagonal();
 }
 
-void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A)
+void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned batchSize, unsigned eigenvectorSize, unsigned m_NumberOfTrainingSets, std::vector< vnl_vector<PrecisionType> > m_TrainingSets, vnl_vector<PrecisionType> &m_Means, vnl_vector<PrecisionType> &m_EigenValues, vnl_matrix<PrecisionType> &m_EigenVectors, vnl_matrix<PrecisionType> &m_A)
 {
 	// n x m rols x cols
 	// m_NumberOfMeasures:		 69138
@@ -278,16 +284,18 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 	vnl_vector<PrecisionType> udd;
 	vnl_matrix<PrecisionType> tmpAd;
 
-	for (unsigned int i = 10; i < m_NumberOfTrainingSets; i++)
+	// start from batchSize to the end of the sets
+	for (unsigned int i = batchSize; i < m_NumberOfTrainingSets; i++)
 	{
+		std::cout << "ipca loop" << std::endl;
 		// 1. Project new surface from D to current eigenspace, a = UT(x-mean)
 		UT = m_EigenVectors.transpose();
-		x.set_size(m_NumberOfMeasures, 1);
-		x.set_column(0, m_TrainingSets[i]);
-		tmpSet.set_size(m_NumberOfMeasures, 1);
-		tmpSet.set_column(0, (m_TrainingSets[i] - m_Means));
-		a.set_size(i,1);
-		a.set_columns(0, UT * tmpSet);
+		x.set_size(m_NumberOfMeasures, 1); // 69138 x 1
+		x.set_column(0, m_TrainingSets[i]); // set first column as current image
+		tmpSet.set_size(m_NumberOfMeasures, 1); // 69138 x 1
+		tmpSet.set_column(0, (m_TrainingSets[i] - m_Means)); // remove mean from current image
+		a.set_size(i,1); // i x 1
+		a.set_columns(0, UT * tmpSet); // project to eigenspace
 
 		// 2. Reconstruct new image, y = U a + mean
 		m.set_size(m_Means.size(), 1);
@@ -296,6 +304,9 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 
 		// 3. Compute the residual vector, r is orthogonal to U
 		r = x - y;
+		std::ofstream myfile("C:\\r.csv", std::ios_base::app | std::ios_base::out);
+		myfile << r.get_column(0) << "\n";
+		myfile.close();
 
 		// 4. Append r as a  new basis vector
 		Ud.set_size(m_NumberOfMeasures, m_EigenVectors.cols() + 1);
@@ -343,14 +354,14 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 
 		// 7. Project the coefficient vectors to new basis
 		// remove means from all columns of Ad
-		// Ad size: i+1 x i+1 (i start at 10)
-		tmpAd.set_size(Ad.rows(), Ad.cols());
+		// Ad size: i+1 x i+1 (i start at batchsize)
+		/*tmpAd.set_size(Ad.rows(), Ad.cols());
 		for (unsigned int m = 0; m < i; m++)
 		{
 			tmpAd.set_column(m, Ad.get_column(m) - udd);
-		}
-		m_A = Udd.transpose() * (tmpAd);
-
+		}*/
+		m_A = Udd.transpose() * Ad;
+		//std::cout << m_A << std::endl;
 		// 8. Rotate the subspace
 		m_EigenVectors = Ud * Udd;
 
@@ -360,10 +371,10 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOfTrainin
 		// 10. New eigenvalues
 		m_EigenValues = lamdadd;
 		
+		
 	}
+	// trim eigenvectorSize if needed
+	// trim 
 }
-//laptop
-//C:\Users\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 1 1 1
 
-//desktop
-//C:\Users\Alex\Documents\thesis\shape\build\bin\Release\shape_pca_itk.exe C:\Users\Alex\Documents\IncrementalLearn\IPCA\aligned\aligned.mvb 1 1 1
+//C:\Users\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 10 20
