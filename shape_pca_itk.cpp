@@ -377,4 +377,4 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned batchSize, unsign
 	// trim 
 }
 
-//C:\Users\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 10 20
+//C:\Users\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 10 20 11
