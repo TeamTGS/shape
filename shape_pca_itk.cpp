@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	int count = 1;
 	std::vector<VectorType> trainingSets;
 	//for (unsigned int i = 0; i < filenames.size(); i++)
-	for (unsigned int i = 0; i < trainingSetsSizeControl; i++)
+	for (int i = 0; i < trainingSetsSizeControl; i++)
 	{
 		ReaderType::Pointer  polyDataReader = ReaderType::New();
 		polyDataReader->SetFileName(filenames[i].c_str());
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 	//std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
 
 	// IPCA the rest of the surfaces
-	// 10 to end
+	
 	IPCAModelParameters(measures, batchSize, eigenvectorSize, trainingSets.size(), trainingSets, means, eigenValues, eigenVectors, A);
 	std::cout << "eigenValues: " << eigenValues << std::endl;
 	//std::cout << "eigenValues sum: " << eigenValues.sum() << std::endl;
@@ -182,7 +182,7 @@ bool ReadSurfaceFileNames(const char * filename, std::vector<int> &ids, std::vec
 		{
 			ids.push_back(id);
 			filenames.push_back(name);
-			std::cout << id << " " << name << " " << std::endl;
+			//std::cout << id << " " << name << " " << std::endl;
 		}
 		else
 		{
@@ -227,7 +227,7 @@ void EstimatePCAModelParameters(unsigned m_NumberOfMeasures, unsigned m_NumberOf
 	//std::cout << "PCAModelEstimator: D Performed " << D.rows() << "x" << D.columns() << std::endl;
 
 	ApplyStandardPCA(D, m_EigenVectors, m_EigenValues);
-
+	// m_A correct??
 	m_A.set_size(m_NumberOfTrainingSets, m_NumberOfTrainingSets);
 	for (unsigned int i = 0; i < m_NumberOfTrainingSets; i++)
 	{
@@ -249,7 +249,6 @@ void ApplyStandardPCA(const vnl_matrix<PrecisionType> &data, vnl_matrix<Precisio
 	//  eigenVecs = data*vnl_matrix_inverse<double>(svd.U()).pinverse().transpose(); //!< Extract eigenvectors from U, noting U = V^T since covariance matrix is real and symmetric
 	eigenVecs = data*svd.U(); //!< Extract eigenvectors from U, noting U = V^T since covariance matrix is real and symmetric
 	eigenVecs.normalize_columns();
-
 	eigenVals = svd.W().diagonal();
 }
 
@@ -257,63 +256,69 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned batchSize, unsign
 {
 	// n x m rols x cols
 	// m_NumberOfMeasures:		 69138
-	// m_NumberOfTrainingSets:	 20 (depends on .mvb file)
-	// m_TrainingSets:			 (vector) 69138 x 20, whole set of surface
+	// m_NumberOfTrainingSets:	 m_NumberOfTrainingSets
+	// m_TrainingSets:			 (vector) 69138 x m_NumberOfTrainingSets, whole set of surface
 	// m_Means:					 (vector) 69138
-	// m_EigenValues:			 (vector) initially 10 from Batch PCA
-	// m_EigenVectors:			 (matrix) initially 69138 x 10 from Batch PCA
-	// m_A:						 (matrix) coefficient, initially 10 x 10 
+	// m_EigenValues:			 (vector) size = batchSize from Batch PCA
+	// m_EigenVectors:			 (matrix) 69138 x batchSize from Batch PCA
+	// m_A:						 (matrix) coefficient, initially batchSize x batchSize 
 	
 	//vnl_matrix<PrecisionType> D;
 	//D.set_size(m_NumberOfMeasures, m_NumberOfTrainingSets);
 	//D.fill(0);
 	//vnl_matrix<PrecisionType> U = m_EigenVectors; // 69138 x 10
-	vnl_matrix<PrecisionType> UT; // 10 x 69138
-	vnl_matrix<PrecisionType> x;
-	vnl_matrix<PrecisionType> m;
-	vnl_matrix<PrecisionType> tmpSet;
-	vnl_matrix<PrecisionType> a;
-	vnl_matrix<PrecisionType> y;
-	vnl_matrix<PrecisionType> r;
-	vnl_matrix<PrecisionType> Ud;
-	vnl_matrix<PrecisionType> Udd;
-	vnl_vector<PrecisionType> lamdadd;
-	vnl_matrix<PrecisionType> Ad;
-	vnl_matrix<PrecisionType> Anew;
-	vnl_matrix<PrecisionType> rn;
-	vnl_vector<PrecisionType> udd;
-	vnl_matrix<PrecisionType> tmpAd;
+	//const PrecisionType norm = 1.0 / (data.cols() - 1);
+
+	typedef vnl_vector<PrecisionType> VectorType;
+	typedef vnl_matrix<PrecisionType> MatrixType;
+
+	MatrixType UT; // 10 x 69138
+	MatrixType x; // current shape
+	MatrixType mean;
+	MatrixType tmpSet;
+	MatrixType a;
+	MatrixType y;
+	MatrixType r;
+	MatrixType Ud;
+	MatrixType Udd;
+	VectorType lamdadd;
+	MatrixType Ad;
+	MatrixType Anew;
+	MatrixType rn;
+	VectorType udd;
+	MatrixType tmpAd;
 
 	// start from batchSize to the end of the sets
 	for (unsigned int i = batchSize; i < m_NumberOfTrainingSets; i++)
 	{
-		std::cout << "ipca loop" << std::endl;
+		//std::cout << "ipca loop" << std::endl;
 		// 1. Project new surface from D to current eigenspace, a = UT(x-mean)
 		UT = m_EigenVectors.transpose();
-		x.set_size(m_NumberOfMeasures, 1); // 69138 x 1
-		x.set_column(0, m_TrainingSets[i]); // set first column as current image
+		x.set_size(m_NumberOfMeasures, 1); // current shape set size 69138 x 1
+		x.set_column(0, m_TrainingSets[i]); // set first column from training set
 		tmpSet.set_size(m_NumberOfMeasures, 1); // 69138 x 1
-		tmpSet.set_column(0, (m_TrainingSets[i] - m_Means)); // remove mean from current image
+		tmpSet.set_column(0, (m_TrainingSets[i] - m_Means)); // remove mean from current shape
 		a.set_size(i,1); // i x 1
 		a.set_columns(0, UT * tmpSet); // project to eigenspace
 
 		// 2. Reconstruct new image, y = U a + mean
-		m.set_size(m_Means.size(), 1);
-		m.set_column(0, m_Means);
-		y = m_EigenVectors*a + m;
+		mean.set_size(m_Means.size(), 1);
+		mean.set_column(0, m_Means);
+		y = m_EigenVectors*a + mean;
 
 		// 3. Compute the residual vector, r is orthogonal to U
 		r = x - y;
-		std::ofstream myfile("C:\\r.csv", std::ios_base::app | std::ios_base::out);
-		myfile << r.get_column(0) << "\n";
-		myfile.close();
+		
+		//std::ofstream myfile("C:\\r.csv", std::ios_base::app | std::ios_base::out);
+		//myfile << r.get_column(0) << "\n";
+		//myfile.close();
 
 		// 4. Append r as a  new basis vector
 		Ud.set_size(m_NumberOfMeasures, m_EigenVectors.cols() + 1);
 		Ud.fill(0);
 		Ud.set_columns(0, m_EigenVectors);
-		rn = r.normalize_columns();
-		Ud.set_columns(Ud.cols() - 1, rn);
+		/////////////////////rn = r.normalize_columns();
+		Ud.set_columns(Ud.cols() - 1, r);
 
 		// 5. New coefficients
 		Ad.set_size(m_A.rows() + 1, m_A.cols() + 1); // i+1 x i+1
@@ -321,34 +326,34 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned batchSize, unsign
 		// add A
 		Ad.update(m_A, 0, 0);
 		// add a
-		Ad.update(a, 0, Ad.cols() - 1);
+		Ad.update(a, 0,  Ad.cols()-1);
 		// add ||r||
-		/*double r_mag = 0;
-		for (unsigned int j = 0; j < r.size(); j++)
-		{
-			r_mag += (r.get(j, 0)*r.get(j, 0));
-		}
-		r_mag = sqrt(r_mag);
-*/
+		//double r_mag = 0;
+		//for (unsigned int j = 0; j < r.size(); j++)
+		//{
+		//	r_mag += (r.get(j, 0)*r.get(j, 0));
+		//}
+		//r_mag = sqrt(r_mag);
 		// #1 r_mag
 		//Ad.put(Ad.rows() - 1, Ad.cols() - 1, r_mag);
-		//std::cout << "r_mag: " << r_mag << std::endl;
 		// #2 r.array_two_norm()
-		Ad.put(Ad.rows() - 1, Ad.cols() - 1, sqrt(r.array_two_norm()));
+		// r.array_two_norm() always 1
+		Ad.put(Ad.rows() - 1, Ad.cols() - 1, r.array_two_norm());
+	
 
 		// 6. Perform PCA on Ad
 		// udd is mean of Ad, one column, Ad rows
 		udd.set_size(Ad.cols());
 		udd.fill(0);
-		for (unsigned int k = 0; k < Ad.cols(); k++)
+		for (unsigned int j = 0; j < Ad.cols(); j++)
 		{
-			udd += Ad.get_column(k);
+			udd += Ad.get_column(j);
 		}
 		udd /= (PrecisionType)(Ad.cols());
-		for (unsigned int l = 0; l < Ad.cols(); l++)
+		for (unsigned int j = 0; j < Ad.cols(); j++)
 		{
-			const vnl_vector<PrecisionType> tmpSet = Ad.get_column(l) - udd;
-			Ad.set_column(l, tmpSet);
+			const vnl_vector<PrecisionType> tmpSet = Ad.get_column(j) - udd;
+			Ad.set_column(j, tmpSet);
 		}
 		ApplyStandardPCA(Ad, Udd, lamdadd);
 
@@ -378,3 +383,4 @@ void IPCAModelParameters(unsigned m_NumberOfMeasures, unsigned batchSize, unsign
 }
 
 //C:\Users\Alex\Desktop\shape\build\bin\Release\shape_pca_itk.exe C:\aligned.mvb 10 20 11
+//C:\Users\Alex\Documents\shape\build\bin\Release\shape_pca_itk.exe C:\Users\Alex\Documents\aligned\aligned.mvb 11 20 11

@@ -3,3 +3,8 @@
 ################################################################################
 
 /build
+/shape_pca_itk.dir/Release
+/shape_pca_vtk.dir/Release
+/x64/Release/ZERO_CHECK
+/CMakeLists.txt
+/find.cmake
